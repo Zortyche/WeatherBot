@@ -110,8 +110,7 @@ application.add_handler(CommandHandler("weather", weather_now))
 def webhook():
     data = request.get_json(force=True)
     update = Update.de_json(data, application.bot)
-    # Вместо asyncio.run используем create_task
-    asyncio.create_task(application.process_update(update))
+    asyncio.create_task(application.process_update(update))  # правильный async вызов
     return "OK", 200
 
 # ====== Health check ======
@@ -119,7 +118,7 @@ def webhook():
 def home():
     return "Bot is alive!", 200
 
-# ====== Запуск ======
+# ====== Запуск Flask ======
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
