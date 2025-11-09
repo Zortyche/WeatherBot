@@ -1,13 +1,18 @@
 import json
 import os
 import requests
-from telegram import Bot, Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+)
 
 # ====== Настройки ======
-TELEGRAM_TOKEN = os.environ.get("eee49e70307f2f9bfca6496ec6a219ce")
-WEATHER_API_KEY = os.environ.get("8318591890:AAFI1wld9Ip-NIa6OVcxO0udFUlEmvSXrlQ")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8318591890:AAFI1wld9Ip-NIa6OVcxO0udFUlEmvSXrlQ")
+WEATHER_API_KEY = os.environ.get("WEATHER_API_KEY", "eee49e70307f2f9bfca6496ec6a219ce")
 USER_DATA_FILE = "users.json"
+
 
 # ====== Загрузка/Сохранение пользователей ======
 def load_users():
@@ -16,39 +21,47 @@ def load_users():
             return json.load(f)
     return {}
 
+
 def save_users(users):
     with open(USER_DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(users, f, ensure_ascii=False)
 
+
 users = load_users()
 
-# ====== Шуточные советы в зависимости от температуры ======
+
+# ====== Шуточные советы ======
 def funny_advice(temp: float):
     if temp <= -20:
-        return "🥶 Дубак ! Лучше дома с пледом и горячим шоколадом!"
+        return "🥶 Дубак! Лучше дома с пледом и горячим шоколадом!"
     elif temp <= -10:
-        return "🥶 Терпимо! Если по кайфу иди на улицу!"
+        return "🥶 Терпимо! Если по кайфу — иди на улицу!"
     elif temp <= 0:
-        return "❄️ Снег и мороз. Приготовь калгоки!"
+        return "❄️ Снег и мороз. Приготовь калготы!"
     elif temp <= 10:
         return "🧥 Прохладно. Возьми накидку с капюшоном!"
     elif temp <= 20:
         return "🌤️ Погода норм. Можно погулять, если есть монета."
     elif temp <= 30:
-        return "😎 Заебись! Отличная погода для прогулки, но не забудь воду."
+        return "😎 Отличная погода для прогулки, но не забудь воду."
     else:
         return "🔥 Жара! Лучше кондиционер, мороженое и прохлада дома."
 
-# ====== Функция получения погоды ======
+
+# ====== Получение погоды ======
 def get_weather(city: str):
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={WEATHER_API_KEY}&units=metric&lang=ru"
+    url = (
+        f"http://api.openweathermap.org/data/2.5/weather?"
+        f"q={city}&appid={WEATHER_API_KEY}&units=metric&lang=ru"
+    )
     response = requests.get(url)
     data = response.json()
-    
+
     if response.status_code == 200:
-        temp = data['main']['temp']
-        description = data['weather'][0]['description']
-        humidity = data['main']['humidity']
+        temp = data["main"]["temp"]
+        description = data["weather"][0]["description"]
+        humidity = data["main"]["humidity"]
+
         emoji_map = {
             "дождь": "🌧️",
             "снег": "❄️",
@@ -56,51 +69,66 @@ def get_weather(city: str):
             "ясно": "☀️",
             "туман": "🌫️",
         }
-        weather_emoji = next((e for k, e in emoji_map.items() if k in description.lower()), "🌡️")
+        weather_emoji = next(
+            (e for k, e in emoji_map.items() if k in description.lower()), "🌡️"
+        )
         advice = funny_advice(temp)
-        return f"{weather_emoji} Прогноз для {city}:\n" \
-               f"🌡️ Температура: {temp}°C\n" \
-               f"🌤 Состояние: {description}\n" \
-               f"💧 Влажность: {humidity}%\n\n" \
-               f"💡 Совет: {advice}"
-    else:
-        return "❌ Город хуйня не могу найти, переезжай."
 
-# ====== Команды бота ======
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text(
-        "Здарова Слоняра! Я бот-прогноз погоды 😎\n"
+        return (
+            f"{weather_emoji} Прогноз для {city}:\n"
+            f"🌡️ Температура: {temp}°C\n"
+            f"🌤 Состояние: {description}\n"
+            f"💧 Влажность: {humidity}%\n\n"
+            f"💡 Совет: {advice}"
+        )
+    else:
+        return "❌ Не могу найти этот город, попробуй другой."
+
+
+# ====== Команды ======
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Здарова! Я бот-прогноз погоды 😎\n"
         "Пропиши /setcity <город>, чтобы установить ваш город.\n"
         "Пример: /setcity Moscow"
     )
 
-def set_city(update: Update, context: CallbackContext):
+
+async def set_city(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
     if not context.args:
-        update.message.reply_text("❌ Пожалуйста, укажите город: /setcity Moscow")
+        await update.message.reply_text("❌ Пожалуйста, укажите город: /setcity Moscow")
         return
+
     city = " ".join(context.args)
     users[chat_id] = city
     save_users(users)
-    update.message.reply_text(f"✅ Город установлен: {city}")
+    await update.message.reply_text(f"✅ Город установлен: {city}")
 
-def weather_now(update: Update, context: CallbackContext):
+
+async def weather_now(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
     city = users.get(chat_id)
+
     if not city:
-        update.message.reply_text("❌ Сначала установите город: /setcity Moscow")
+        await update.message.reply_text("❌ Сначала установите город: /setcity Moscow")
         return
-    update.message.reply_text(get_weather(city))
 
-# ====== Инициализация бота ======
-updater = Updater(token=TELEGRAM_TOKEN)
-dispatcher = updater.dispatcher
+    weather_info = get_weather(city)
+    await update.message.reply_text(weather_info)
 
-dispatcher.add_handler(CommandHandler("start", start))
-dispatcher.add_handler(CommandHandler("setcity", set_city))
-dispatcher.add_handler(CommandHandler("weather", weather_now))
 
-# ====== Запуск бота ======
-updater.start_polling()
-print("Бот фурычит, можно рабоать")
-updater.idle()
+# ====== Основной запуск ======
+def main():
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("setcity", set_city))
+    app.add_handler(CommandHandler("weather", weather_now))
+
+    print("✅ Бот запущен и фурычит!")
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()
