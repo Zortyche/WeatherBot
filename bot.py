@@ -71,7 +71,7 @@ def get_weather(city: str):
     else:
         return "❌ Не могу найти этот город, попробуй другой."
 
-# ====== Команды ======
+# ====== Команды бота ======
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Здарова! Я бот-прогноз погоды 😎\n"
@@ -104,11 +104,12 @@ application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("setcity", set_city))
 application.add_handler(CommandHandler("weather", weather_now))
 
-# ====== Webhook endpoint ======
+# ====== Webhook endpoint для Render ======
 @app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
-async def webhook():
+def webhook():
     update = Update.de_json(request.get_json(force=True), application.bot)
-    await application.process_update(update)
+    import asyncio
+    asyncio.run(application.process_update(update))
     return "OK", 200
 
 # ====== Health check ======
@@ -116,7 +117,11 @@ async def webhook():
 def home():
     return "Bot is alive!", 200
 
-# ====== Запуск Flask ======
+# ====== Запуск ======
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    if os.environ.get("LOCAL"):  # локальное тестирование через polling
+        import asyncio
+        asyncio.run(application.run_polling())
+    else:  # на Render через webhook
+        port = int(os.environ.get("PORT", 10000))
+        app.run(host="0.0.0.0", port=port)
