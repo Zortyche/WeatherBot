@@ -6,8 +6,8 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # ====== Настройки ======
-TELEGRAM_TOKEN = os.environ.get("8318591890:AAFI1wld9Ip-NIa6OVcxO0udFUlEmvSXrlQ")
-WEATHER_API_KEY = os.environ.get("eee49e70307f2f9bfca6496ec6a219ce")
+TELEGRAM_TOKEN = "8318591890:AAFI1wld9Ip-NIa6OVcxO0udFUlEmvSXrlQ"  # твой токен от BotFather
+WEATHER_API_KEY = "eee49e70307f2f9bfca6496ec6a219ce"               # ключ OpenWeather
 USER_DATA_FILE = "users.json"
 
 # ====== Flask сервер ======
@@ -61,7 +61,13 @@ def get_weather(city: str):
         }
         weather_emoji = next((e for k, e in emoji_map.items() if k in description.lower()), "🌡️")
         advice = funny_advice(temp)
-        return f"{weather_emoji} Прогноз для {city}:\n🌡️ Температура: {temp}°C\n🌤 Состояние: {description}\n💧 Влажность: {humidity}%\n\n💡 Совет: {advice}"
+        return (
+            f"{weather_emoji} Прогноз для {city}:\n"
+            f"🌡️ Температура: {temp}°C\n"
+            f"🌤 Состояние: {description}\n"
+            f"💧 Влажность: {humidity}%\n\n"
+            f"💡 Совет: {advice}"
+        )
     else:
         return "❌ Не могу найти этот город, попробуй другой."
 
