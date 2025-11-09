@@ -4,9 +4,10 @@ import requests
 from flask import Flask, request
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import asyncio
 
 # ====== Настройки ======
-TELEGRAM_TOKEN = "8318591890:AAFI1wld9Ip-NIa6OVcxO0udFUlEmvSXrlQ"  # твой токен от BotFather
+TELEGRAM_TOKEN = "8318591890:AAFI1wld9Ip-NIa6OVcxO0udFUlEmvSXrlQ"  # токен от BotFather
 WEATHER_API_KEY = "eee49e70307f2f9bfca6496ec6a219ce"               # ключ OpenWeather
 USER_DATA_FILE = "users.json"
 
@@ -107,9 +108,10 @@ application.add_handler(CommandHandler("weather", weather_now))
 # ====== Webhook endpoint для Render ======
 @app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
 def webhook():
-    update = Update.de_json(request.get_json(force=True), application.bot)
-    import asyncio
-    asyncio.run(application.process_update(update))
+    data = request.get_json(force=True)
+    update = Update.de_json(data, application.bot)
+    # Вместо asyncio.run используем create_task
+    asyncio.create_task(application.process_update(update))
     return "OK", 200
 
 # ====== Health check ======
@@ -119,9 +121,5 @@ def home():
 
 # ====== Запуск ======
 if __name__ == "__main__":
-    if os.environ.get("LOCAL"):  # локальное тестирование через polling
-        import asyncio
-        asyncio.run(application.run_polling())
-    else:  # на Render через webhook
-        port = int(os.environ.get("PORT", 10000))
-        app.run(host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
